@@ -1,5 +1,7 @@
 package utils;
 
+import android.util.Log;
+
 import com.rscja.deviceapi.Module;
 import com.rscja.deviceapi.exception.ConfigurationException;
 import com.rscja.utility.StringUtility;
@@ -16,6 +18,7 @@ public class RFID_14443A {
     private static RFID_14443A single = null;
     static Module module;
     byte[] findCar_CMD = {(byte) 0x50, (byte) 0x00, (byte) 0x02, (byte) 0x22, (byte) 0x10, (byte) 0x52, (byte) 0x32};
+    static String TAG = "TAG";
 
     public synchronized static RFID_14443A getInstance() {
         if (single == null) {
@@ -47,6 +50,7 @@ public class RFID_14443A {
 
     /**
      * 寻卡id 返回卡ID号，一般为4个字节，8位长度
+     *
      * @return
      */
 
@@ -55,6 +59,7 @@ public class RFID_14443A {
         if (module.send(findCar_CMD)) {
             byte[] data = module.receive();
             String data_to = StringUtility.bytes2HexString(data, data.length);
+            Log.e(TAG, "read_id:  data_to = " + data_to);
             if (data_to.length() > 24) {
                 //寻卡成功，继续认证秘钥 data[7]  表示ID数据长度，所以要从16开始截取，再减去2位的LRC
                 ID = data_to.substring(16, data_to.length() - 2);
@@ -72,6 +77,8 @@ public class RFID_14443A {
      * @return 返回需要读取块区的数据，每一块区的数据长度为16个字节
      */
     public String read(String key_type, String psw, String block) {
+        psw = psw.trim();
+
         int verify_LRC = 0;//认证校验
         byte[] data = null;
         String read_data_ = "";
@@ -82,6 +89,7 @@ public class RFID_14443A {
             if (data_to.length() > 24) {
                 //寻卡成功，继续认证秘钥 data[7]  表示ID数据长度，所以要从16开始截取，再减去2位的LRC
                 ID = data_to.substring(16, data_to.length() - 2);
+                Log.e(TAG, "read: ID = " + ID);
                 if (data[7] == 4) {
                     verify_LRC = (byte) 0x50 ^ (byte) 0x00 ^ (byte) 0x0c ^ (byte) 0x16 ^ (byte) Integer.parseInt(getKey_type(key_type), 16) ^ (byte) Integer.parseInt(block, 16) ^ Integer.parseInt(Integer.toHexString(data[8] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[9] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[10] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[11] & 0xFF), 16) ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff;//计算 UID 8位的校验位
                 } else if (data[7] == 7) {
@@ -137,14 +145,17 @@ public class RFID_14443A {
      * @return boolean
      */
     public boolean write(String psw, String key_type, String block, String write_data) {
+        Log.e(TAG, "read: 类型 = " + key_type + "密码 = " + psw + "块区" + block + "数据 = " + write_data);
         int verify_LRC = 0;
-        byte[] data = module.receive();
         String data_to = "";
+        module.send(findCar_CMD);
+        byte[] data = module.receive();
         if (data.length > 6) {
             data_to = StringUtility.bytes2HexString(data, data.length);
         } else {
             return false;
         }
+
         if (data_to.length() > 24) {
             //寻卡成功，继续认证秘钥 data[7]  表示ID数据长度，所以要从16开始截取，再减去2位的LRC
             String ID = data_to.substring(16, data_to.length() - 2);

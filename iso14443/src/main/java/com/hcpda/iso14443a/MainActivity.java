@@ -11,7 +11,6 @@ import android.widget.RadioGroup;
 import android.widget.Toast;
 
 import com.rscja.deviceapi.Module;
-import com.rscja.deviceapi.exception.ConfigurationException;
 
 import utils.RFID_14443A;
 import utils.SoundUtil;
@@ -34,6 +33,7 @@ public class MainActivity extends AppCompatActivity implements RadioGroup.OnChec
     ScanFragment scanFragment;
     RadioButton rb_scan;
     RadioButton rb_m1;
+    RFID_14443A rfid_14443A;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,14 +41,14 @@ public class MainActivity extends AppCompatActivity implements RadioGroup.OnChec
         setContentView(R.layout.activity_main);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
 
-        try {
-            module = Module.getInstance();
-        } catch (ConfigurationException e) {
-            e.printStackTrace();
-        }
-        RFID_14443A rfid_14443A = RFID_14443A.getInstance();
+//        try {
+//            module = Module.getInstance();
+//        } catch (ConfigurationException e) {
+//            e.printStackTrace();
+//        }
+         rfid_14443A= RFID_14443A.getInstance();
         soundUtil = new SoundUtil(this);
-        boolean init_result = module.init(2, 115200);
+        boolean init_result = rfid_14443A.init( );
         if (init_result) {
 
             Toast.makeText(getApplicationContext(), "初始化成功", Toast.LENGTH_SHORT).show();
@@ -79,7 +79,7 @@ public class MainActivity extends AppCompatActivity implements RadioGroup.OnChec
     @Override
     protected void onStart() {
         super.onStart();
-        module.powerOn(2);
+        rfid_14443A.power_on();
         showDialog();
     }
 
@@ -107,13 +107,13 @@ public class MainActivity extends AppCompatActivity implements RadioGroup.OnChec
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        module.free();
+        rfid_14443A.free();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        module.powerOff(2);
+        rfid_14443A.power_off();
     }
 
     @Override

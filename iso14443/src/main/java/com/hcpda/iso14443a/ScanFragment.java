@@ -14,8 +14,6 @@ import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-import com.rscja.utility.StringUtility;
-
 import utils.SoundUtil;
 
 
@@ -60,22 +58,15 @@ public class ScanFragment extends Fragment implements View.OnClickListener {
     }
 
     private void read_id() {
-        if (context.module.send(findCar_CMD)) {
-            byte[] data = context.module.receive();
-            String data_to = StringUtility.bytes2HexString(data, data.length);
-            if (data_to.length() > 24) {
-                String result = data_to.substring(16, data_to.length() - 2);
-                tv_result.append("ID:" + result + "\n");
+            String data_to = context.rfid_14443A.read_id();
+            if (!data_to.equals("寻卡失败，请把标签靠近设备")) {
+                tv_result.append("ID:" + data_to + "\n");
                 context.soundUtil.PlaySound(SoundUtil.SoundType.SUCCESS);
             } else {
-                tv_result.append("请将卡靠近设备" + "\n");
+                tv_result.append("寻卡失败，请把标签靠近设备" + "\n");
                 context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
             }
             scrollToBottom(scrollView, tv_result);
-        } else {
-            tv_result.append("请将卡靠近设备" + "\n");
-            context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
-        }
     }
 
     @Override

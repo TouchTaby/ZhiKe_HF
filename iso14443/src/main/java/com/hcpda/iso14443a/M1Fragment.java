@@ -123,7 +123,7 @@ public class M1Fragment extends Fragment implements AdapterView.OnItemSelectedLi
                     sector_adapter.clear();
                     sector_adapter.addAll(set_sp_number(40));
                     sector_adapter.notifyDataSetChanged();
-                }else {
+                } else {
                     sector_adapter.clear();
                     sector_adapter.addAll(set_sp_number(16));
                     sector_adapter.notifyDataSetChanged();
@@ -138,7 +138,7 @@ public class M1Fragment extends Fragment implements AdapterView.OnItemSelectedLi
                     block_adapter.clear();
                     block_adapter.addAll(set_sp_number(16));
                     block_adapter.notifyDataSetChanged();
-                }else {
+                } else {
                     block_adapter.clear();
                     block_adapter.addAll(set_sp_number(4));
                     block_adapter.notifyDataSetChanged();
@@ -160,235 +160,165 @@ public class M1Fragment extends Fragment implements AdapterView.OnItemSelectedLi
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.bt_read:
-                read();
+                String success_data = read();
+                context.soundUtil.PlaySound(SoundUtil.SoundType.SUCCESS);
+                tv_m1_result.append("ID:" + context.rfid_14443A.read_id() + "\n" + "数据：" + success_data + "\n");
+                scrollToBottom(sv_m1,tv_m1_result);
                 break;
             case R.id.bt_write_data:
-                write();
+                String write_data = et_write_data.getText().toString().trim();
+                Log.e(TAG, "onClick: " + write_data );
+                if (!vailHexInput(write_data)) {
+                    Toast.makeText(getActivity(), "内容必须是16进制", Toast.LENGTH_SHORT).show();
+                } else if (write_data.length() == 0) {
+                    Toast.makeText(getActivity(), "写入内容不能为空", Toast.LENGTH_SHORT).show();
+                } else if (sp_block.getSelectedItemPosition() == 3) {
+                    Toast.makeText(getActivity(), "此块区是密码控制块，不可操作", Toast.LENGTH_SHORT).show();
+                }
+                if (write()) {
+                    tv_m1_result.append("数据写入成功" + "\n");
+                    context.soundUtil.PlaySound(SoundUtil.SoundType.SUCCESS);
+                }
                 break;
         }
     }
-    private void read() {
-        int verify_LRC = 0;
-        if (context.module.send(findCar_CMD)) {
-            byte[] data = context.module.receive();
-            Log.e(TAG, "寻卡返回数组长度---" + data.length);
-            String data_to = "";
-            if (data.length > 6) {
-                Log.e(TAG, "ID长度 data[7] = " + data[7]);
-                data_to = StringUtility.bytes2HexString(data, data.length);
-                Log.e(TAG, "寻卡返回--------" + data_to.toString());
-            } else {
-                tv_m1_result.append("请把卡靠近设备" + "\n");
-            }
-            if (data_to.length() > 24) {
-                //寻卡成功，继续认证秘钥 data[7]  表示ID数据长度，所以要从16开始截取，再减去2位的LRC
-                String ID = data_to.substring(16, data_to.length() - 2);
-                Log.e(TAG, "ID转16进制 -------------data[8] = " + Integer.toHexString(data[8] & 0xFF));
-                Log.e(TAG, "ID转16进制 -------------data[9] = " + Integer.toHexString(data[9] & 0xFF));
-                Log.e(TAG, "ID转16进制 -------------data[10] = " + Integer.toHexString(data[10] & 0xFF));
-                Log.e(TAG, "ID转16进制 -------------data[11] = " + Integer.toHexString(data[11] & 0xFF));
-                if (data[7] == 4) {
-                    verify_LRC = (byte) 0x50 ^ (byte) 0x00 ^ (byte) 0x0c ^ (byte) 0x16 ^ (byte) Integer.parseInt(getKey_type(), 16) ^ (byte) Integer.parseInt(getBlock(), 16) ^ Integer.parseInt(Integer.toHexString(data[8] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[9] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[10] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[11] & 0xFF), 16) ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff;//计算 UID 8位的校验位
-                } else if (data[7] == 7) {
-                    verify_LRC = 0x50 ^ 0x00 ^ 0x0c ^ 0x16 ^ Integer.parseInt(getKey_type(), 16) ^ Integer.parseInt(getBlock(), 16) ^ Integer.parseInt(Integer.toHexString(data[8] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[9] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[10] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[11] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[12] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[13] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[14] & 0xFF), 16) ^ 0xff ^ 0xff ^ 0xff ^ 0xff ^ 0xff ^ 0xff;//计算 UID 14位的校验位
-                }
-                String ren_lrc = Integer.toHexString(verify_LRC);
-                String psw = et_password.getText().toString().trim();
-                Log.e(TAG, "认证校验---------++++++++++-------" + ren_lrc);
-                if (psw.length() < 1) {
-                    //如果没有输入秘钥就默认FFFFFFFFFFFF
-                    psw = defaultPassword;
-                    Log.e(TAG, "默认秘钥是-------- " + psw);
-                }
-                //认证命令
-                String verify = "50" + // 50 表示数据头
-                        "000c" + // 0c 表示数据长度
-                        "16" + //0x16 为验证秘钥命令
-                        getKey_type() +//秘钥类型 60为A，61为B
-                        getBlock() + //表示数据块
-                        ID + // 卡ID
-                        psw + // 秘钥
-                        ren_lrc; // 校验位
-                Log.e(TAG, "秘钥认证命令组合----" + verify);
-                Log.e(TAG, "秘钥认证----校验位----" + ren_lrc);
 
-                if (context.module.send(StringUtility.hexString2Bytes(verify))) {
-                    byte[] renz = context.module.receive();//认证接收
-                    String succ_data = StringUtility.bytes2HexString(renz, renz.length);
-                    Log.e(TAG, "认证接收数据-----" + succ_data);
-                    if (succ_data.equals("5000001646")) {
-                        int read_lrc = 0x50 ^ 0x00 ^ 0x01 ^ 0x17 ^ Integer.parseInt(getBlock(), 16);
-                        //认证秘钥通过 继续读卡
-                        Log.e(TAG, "秘钥认证通过 ");
-                        String read_com = "50" +
-                                "00" +
-                                "01" +//数据块长度
-                                "17" +// CMD
-                                getBlock() +//数据块
-                                Integer.toHexString(read_lrc);//校验位
-                        Log.e(TAG, "读卡数据块是" + sp_block.getSelectedItem().toString());
-                        Log.e(TAG, "读卡校验位是" + Integer.toHexString(read_lrc));
-                        Log.e(TAG, "读卡命令组合" + read_com);
-                        if (context.module.send(StringUtility.hexString2Bytes(read_com))) {
-                            byte[] re_byte = context.module.receive();
-                            String success_data = StringUtility.bytes2HexString(re_byte, re_byte.length);
-                            Log.e(TAG, "读卡成功：数据内容是--------" + success_data);
-                            if (success_data.length() != 12) {
-                                context.soundUtil.PlaySound(SoundUtil.SoundType.SUCCESS);
-                                tv_m1_result.append("ID:" + ID + "\n" + "数据：" + success_data.substring(8, 40) + "\n");
-                            } else {
-                                tv_m1_result.append("读卡失败" + "\n");
-                                context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
-                            }
-                        }
-                    } else {
-                        tv_m1_result.append("秘钥认证 失败" + "\n");
-                        context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
-                    }
-                    Log.e(TAG, "read: 卡号---" + ID);
-                }
-            } else {
-                context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
-                tv_m1_result.append("读卡失败" + "\n");
-            }
-            scrollToBottom(sv_m1, tv_m1_result);
-        } else {
-            Log.e("TAG", "read: 发送失败");
-        }
-
+    private String read() {
+        return context.rfid_14443A.read(getKey_type(), "FFFFFFFFFFFF", getBlock());
     }
 
     //写卡
-    private void write() {
-        String write_data = et_write_data.getText().toString().trim();
-        if (!vailHexInput(write_data)) {
-            Toast.makeText(getActivity(), "内容必须是16进制", Toast.LENGTH_SHORT).show();
-        } else if (write_data.length() == 0) {
-            Toast.makeText(getActivity(), "写入内容不能为空", Toast.LENGTH_SHORT).show();
-        } else if (sp_block.getSelectedItemPosition() == 3) {
-            Toast.makeText(getActivity(), "此块区是密码控制块，不可操作", Toast.LENGTH_SHORT).show();
-        } else {
-            int verify_LRC = 0;
-            if (context.module.send(findCar_CMD)) {
-                byte[] data = context.module.receive();
-                Log.e(TAG, "写卡返回数组长度---" + data.length);
-                String data_to = "";
-                if (data.length > 6) {
-                    Log.e(TAG, "ID长度 data[7] = " + data[7]);
-                    data_to = StringUtility.bytes2HexString(data, data.length);
-                    Log.e(TAG, "写卡返回--------" + data_to.toString());
-                } else {
-                    tv_m1_result.append("请把卡靠近设备" + "\n");
-                }
-                if (data_to.length() > 24) {
-                    //寻卡成功，继续认证秘钥 data[7]  表示ID数据长度，所以要从16开始截取，再减去2位的LRC
-                    String ID = data_to.substring(16, data_to.length() - 2);
-                    if (data[7] == 4) {
-                        verify_LRC = (byte) 0x50 ^ (byte) 0x00 ^ (byte) 0x0c ^ (byte) 0x16 ^ (byte) Integer.parseInt(getKey_type(), 16) ^ (byte) Integer.parseInt(getBlock(), 16) ^ Integer.parseInt(Integer.toHexString(data[8] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[9] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[10] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[11] & 0xFF), 16) ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff;//计算 UID 8位的校验位
-                    } else if (data[7] == 7) {
-                        verify_LRC = 0x50 ^ 0x00 ^ 0x0c ^ 0x16 ^ Integer.parseInt(getKey_type(), 16) ^ Integer.parseInt(getBlock(), 16) ^ Integer.parseInt(Integer.toHexString(data[8] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[9] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[10] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[11] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[12] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[13] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[14] & 0xFF), 16) ^ 0xff ^ 0xff ^ 0xff ^ 0xff ^ 0xff ^ 0xff;//计算 UID 14位的校验位
-                    }
-                    String ren_lrc = Integer.toHexString(verify_LRC);
-                    String psw = et_password.getText().toString().trim();
-                    Log.e(TAG, "认证校验---------++++++++++-------" + ren_lrc);
-                    if (psw.length() < 1) {
-                        //如果没有输入秘钥就默认FFFFFFFFFFFF
-                        psw = defaultPassword;
-                    }
-                    //认证命令
-                    String verify = "50" + // 50 表示数据头
-                            "000c" + // 0c 表示数据长度
-                            "16" + //0x16 为验证秘钥命令
-                            getKey_type() +//秘钥类型 60为A，61为B
-                            getBlock() + //表示数据块
-                            ID + // 卡ID
-                            psw + // 秘钥
-                            ren_lrc; // 校验位
-                    Log.e(TAG, "秘钥认证命令组合----" + verify);
-                    Log.e(TAG, "秘钥认证----校验位----" + ren_lrc);
-
-                    if (context.module.send(StringUtility.hexString2Bytes(verify))) {
-                        byte[] renz = context.module.receive();//认证接收
-                        String succ_data = StringUtility.bytes2HexString(renz, renz.length);
-                        Log.e(TAG, "认证接收数据-----" + succ_data);
-                        if (succ_data.equals("5000001646")) {
-                            byte[] write = hexString2Bytes(write_data);
-                            byte[] final_data = new byte[32];
-                            for (int i = 0; i < 32; i++) {
-                                final_data[i] = 0x00;
-                                Log.e(TAG, "写卡数组 -------------final_data[" + i + "]" + " = " + final_data[i]);
-                            }
-                            for (int i = 0; i < write.length; i++) {
-                                final_data[i] = write[i];
-                                Log.e(TAG, "写卡数组 -------------data[0] = " + final_data[i]);
-                            }
-                            int write_lrc = 0x50 ^ 0x00 ^ 0x11 ^ 0x18 ^ Integer.parseInt(getBlock(), 16) ^
-                                    final_data[0] ^ final_data[1] ^ final_data[2] ^
-                                    final_data[3] ^ final_data[4] ^ final_data[5] ^ final_data[6] ^
-                                    final_data[7] ^ final_data[8] ^ final_data[9] ^ final_data[10] ^
-                                    final_data[11] ^ final_data[12] ^ final_data[13] ^ final_data[14] ^ final_data[15];
-                            //认证秘钥通过 继续写卡
-                            String write_com = "50" +
-                                    "00" +
-                                    "11" +//数据内容总长度
-                                    "18" +// CMD
-                                    getBlock() +//数据块
-                                    StringUtility.byte2HexString(final_data[0]) +
-                                    StringUtility.byte2HexString(final_data[1]) +
-                                    StringUtility.byte2HexString(final_data[2]) +
-                                    StringUtility.byte2HexString(final_data[3]) +
-                                    StringUtility.byte2HexString(final_data[4]) +
-                                    StringUtility.byte2HexString(final_data[5]) +
-                                    StringUtility.byte2HexString(final_data[6]) +
-                                    StringUtility.byte2HexString(final_data[7]) +
-                                    StringUtility.byte2HexString(final_data[8]) +
-                                    StringUtility.byte2HexString(final_data[9]) +
-                                    StringUtility.byte2HexString(final_data[10]) +
-                                    StringUtility.byte2HexString(final_data[11]) +
-                                    StringUtility.byte2HexString(final_data[12]) +
-                                    StringUtility.byte2HexString(final_data[13]) +
-                                    StringUtility.byte2HexString(final_data[14]) +
-                                    StringUtility.byte2HexString(final_data[15]) +
-                                    getWriteLrc(write_lrc);//校验位
-
-                            Log.e(TAG, "写卡秘钥认证通过 ");
-                            Log.e(TAG, "写卡校验位是" + getWriteLrc(write_lrc));
-                            Log.e(TAG, "写卡命令组合" + write_com);
-                            if (context.module.send(StringUtility.hexString2Bytes(write_com))) {
-                                try {
-                                    Thread.sleep(200);
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                                byte[] re_byte = context.module.receive();
-                                String success_data = StringUtility.bytes2HexString(re_byte, re_byte.length);
-                                Log.e(TAG, "写卡成功：数据内容是--------" + success_data);
-                                if (success_data.equals("5000001848")) {
-                                    tv_m1_result.append("数据写入成功" + "\n");
-                                    context.soundUtil.PlaySound(SoundUtil.SoundType.SUCCESS);
-                                } else if (succ_data.length() == 0) {
-                                    tv_m1_result.append("写卡失败" + "\n");
-                                    context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
-                                } else {
-                                    tv_m1_result.append("写卡失败" + "\n");
-                                    context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
-                                }
-                            }
-                        } else {
-                            tv_m1_result.append("秘钥认证 失败" + "\n");
-                            context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
-                        }
-                    }
-                } else {
-                    tv_m1_result.append("寻卡失败" + "\n");
-                    context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
-                }
-                scrollToBottom(sv_m1, tv_m1_result);
-
-            } else {
-                Log.e("TAG", "read: 发送失败");
-            }
-        }
+    private boolean write() {
+        return context.rfid_14443A.write("FFFFFFFFFFFF", getKey_type(), getBlock(), et_write_data.getText().toString().trim());
+//        String write_data = et_write_data.getText().toString().trim();
+//        if (!vailHexInput(write_data)) {
+//            Toast.makeText(getActivity(), "内容必须是16进制", Toast.LENGTH_SHORT).show();
+//        } else if (write_data.length() == 0) {
+//            Toast.makeText(getActivity(), "写入内容不能为空", Toast.LENGTH_SHORT).show();
+//        } else if (sp_block.getSelectedItemPosition() == 3) {
+//            Toast.makeText(getActivity(), "此块区是密码控制块，不可操作", Toast.LENGTH_SHORT).show();
+//        } else {
+//            int verify_LRC = 0;
+//            if (context.module.send(findCar_CMD)) {
+//                byte[] data = context.module.receive();
+//                Log.e(TAG, "写卡返回数组长度---" + data.length);
+//                String data_to = "";
+//                if (data.length > 6) {
+//                    Log.e(TAG, "ID长度 data[7] = " + data[7]);
+//                    data_to = StringUtility.bytes2HexString(data, data.length);
+//                    Log.e(TAG, "写卡返回--------" + data_to.toString());
+//                } else {
+//                    tv_m1_result.append("请把卡靠近设备" + "\n");
+//                }
+//                if (data_to.length() > 24) {
+//                    //寻卡成功，继续认证秘钥 data[7]  表示ID数据长度，所以要从16开始截取，再减去2位的LRC
+//                    String ID = data_to.substring(16, data_to.length() - 2);
+//                    if (data[7] == 4) {
+//                        verify_LRC = (byte) 0x50 ^ (byte) 0x00 ^ (byte) 0x0c ^ (byte) 0x16 ^ (byte) Integer.parseInt(getKey_type(), 16) ^ (byte) Integer.parseInt(getBlock(), 16) ^ Integer.parseInt(Integer.toHexString(data[8] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[9] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[10] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[11] & 0xFF), 16) ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff ^ (byte) 0xff;//计算 UID 8位的校验位
+//                    } else if (data[7] == 7) {
+//                        verify_LRC = 0x50 ^ 0x00 ^ 0x0c ^ 0x16 ^ Integer.parseInt(getKey_type(), 16) ^ Integer.parseInt(getBlock(), 16) ^ Integer.parseInt(Integer.toHexString(data[8] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[9] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[10] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[11] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[12] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[13] & 0xFF), 16) ^ Integer.parseInt(Integer.toHexString(data[14] & 0xFF), 16) ^ 0xff ^ 0xff ^ 0xff ^ 0xff ^ 0xff ^ 0xff;//计算 UID 14位的校验位
+//                    }
+//                    String ren_lrc = Integer.toHexString(verify_LRC);
+//                    String psw = et_password.getText().toString().trim();
+//                    Log.e(TAG, "认证校验---------++++++++++-------" + ren_lrc);
+//                    if (psw.length() < 1) {
+//                        //如果没有输入秘钥就默认FFFFFFFFFFFF
+//                        psw = defaultPassword;
+//                    }
+//                    //认证命令
+//                    String verify = "50" + // 50 表示数据头
+//                            "000c" + // 0c 表示数据长度
+//                            "16" + //0x16 为验证秘钥命令
+//                            getKey_type() +//秘钥类型 60为A，61为B
+//                            getBlock() + //表示数据块
+//                            ID + // 卡ID
+//                            psw + // 秘钥
+//                            ren_lrc; // 校验位
+//                    Log.e(TAG, "秘钥认证命令组合----" + verify);
+//                    Log.e(TAG, "秘钥认证----校验位----" + ren_lrc);
+//
+//                    if (context.module.send(StringUtility.hexString2Bytes(verify))) {
+//                        byte[] renz = context.module.receive();//认证接收
+//                        String succ_data = StringUtility.bytes2HexString(renz, renz.length);
+//                        Log.e(TAG, "认证接收数据-----" + succ_data);
+//                        if (succ_data.equals("5000001646")) {
+//                            byte[] write = hexString2Bytes(write_data);
+//                            byte[] final_data = new byte[32];
+//                            for (int i = 0; i < 32; i++) {
+//                                final_data[i] = 0x00;
+//                                Log.e(TAG, "写卡数组 -------------final_data[" + i + "]" + " = " + final_data[i]);
+//                            }
+//                            for (int i = 0; i < write.length; i++) {
+//                                final_data[i] = write[i];
+//                                Log.e(TAG, "写卡数组 -------------data[0] = " + final_data[i]);
+//                            }
+//                            int write_lrc = 0x50 ^ 0x00 ^ 0x11 ^ 0x18 ^ Integer.parseInt(getBlock(), 16) ^
+//                                    final_data[0] ^ final_data[1] ^ final_data[2] ^
+//                                    final_data[3] ^ final_data[4] ^ final_data[5] ^ final_data[6] ^
+//                                    final_data[7] ^ final_data[8] ^ final_data[9] ^ final_data[10] ^
+//                                    final_data[11] ^ final_data[12] ^ final_data[13] ^ final_data[14] ^ final_data[15];
+//                            //认证秘钥通过 继续写卡
+//                            String write_com = "50" +
+//                                    "00" +
+//                                    "11" +//数据内容总长度
+//                                    "18" +// CMD
+//                                    getBlock() +//数据块
+//                                    StringUtility.byte2HexString(final_data[0]) +
+//                                    StringUtility.byte2HexString(final_data[1]) +
+//                                    StringUtility.byte2HexString(final_data[2]) +
+//                                    StringUtility.byte2HexString(final_data[3]) +
+//                                    StringUtility.byte2HexString(final_data[4]) +
+//                                    StringUtility.byte2HexString(final_data[5]) +
+//                                    StringUtility.byte2HexString(final_data[6]) +
+//                                    StringUtility.byte2HexString(final_data[7]) +
+//                                    StringUtility.byte2HexString(final_data[8]) +
+//                                    StringUtility.byte2HexString(final_data[9]) +
+//                                    StringUtility.byte2HexString(final_data[10]) +
+//                                    StringUtility.byte2HexString(final_data[11]) +
+//                                    StringUtility.byte2HexString(final_data[12]) +
+//                                    StringUtility.byte2HexString(final_data[13]) +
+//                                    StringUtility.byte2HexString(final_data[14]) +
+//                                    StringUtility.byte2HexString(final_data[15]) +
+//                                    getWriteLrc(write_lrc);//校验位
+//
+//                            Log.e(TAG, "写卡秘钥认证通过 ");
+//                            Log.e(TAG, "写卡校验位是" + getWriteLrc(write_lrc));
+//                            Log.e(TAG, "写卡命令组合" + write_com);
+//                            if (context.module.send(StringUtility.hexString2Bytes(write_com))) {
+//                                try {
+//                                    Thread.sleep(200);
+//                                } catch (InterruptedException e) {
+//                                    e.printStackTrace();
+//                                }
+//                                byte[] re_byte = context.module.receive();
+//                                String success_data = StringUtility.bytes2HexString(re_byte, re_byte.length);
+//                                Log.e(TAG, "写卡成功：数据内容是--------" + success_data);
+//                                if (success_data.equals("5000001848")) {
+//                                    tv_m1_result.append("数据写入成功" + "\n");
+//                                    context.soundUtil.PlaySound(SoundUtil.SoundType.SUCCESS);
+//                                } else if (succ_data.length() == 0) {
+//                                    tv_m1_result.append("写卡失败" + "\n");
+//                                    context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
+//                                } else {
+//                                    tv_m1_result.append("写卡失败" + "\n");
+//                                    context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
+//                                }
+//                            }
+//                        } else {
+//                            tv_m1_result.append("秘钥认证 失败" + "\n");
+//                            context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
+//                        }
+//                    }
+//                } else {
+//                    tv_m1_result.append("寻卡失败" + "\n");
+//                    context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
+//                }
+//                scrollToBottom(sv_m1, tv_m1_result);
+//
+//            } else {
+//                Log.e("TAG", "read: 发送失败");
+//            }
+//        }
     }
 
     public ArrayList<String> set_sp_number(int count) {
@@ -403,13 +333,7 @@ public class M1Fragment extends Fragment implements AdapterView.OnItemSelectedLi
     }
 
     public String getKey_type() {
-        String key_type = sp_key_type.getSelectedItem().toString();
-        if (key_type.equals("A")) {
-            key_type = "60";
-        } else if (key_type.equals("B")) {
-            key_type = "61";
-        }
-        return key_type;
+        return sp_key_type.getSelectedItem().toString();
     }
 
     public String getWriteLrc(int lrc) {
@@ -466,6 +390,7 @@ public class M1Fragment extends Fragment implements AdapterView.OnItemSelectedLi
         }
         return bytes;
     }
+
     public void scrollToBottom(final View scroll, final View inner) {
         Handler mHandler = new Handler();
         mHandler.post(new Runnable() {
