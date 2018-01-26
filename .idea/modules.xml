@@ -5,6 +5,7 @@
       <module fileurl="file://$PROJECT_DIR$/ZhiKe_HF.iml" filepath="$PROJECT_DIR$/ZhiKe_HF.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/iso14443/iso14443.iml" filepath="$PROJECT_DIR$/iso14443/iso14443.iml" />
+      <module fileurl="file://$PROJECT_DIR$/iso15693/iso15693.iml" filepath="$PROJECT_DIR$/iso15693/iso15693.iml" />
     </modules>
   </component>
 </project>

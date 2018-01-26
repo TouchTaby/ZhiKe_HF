@@ -1,1 +1,1 @@
-include ':app', ':iso14443'
+include ':app', ':iso14443', ':iso15693'

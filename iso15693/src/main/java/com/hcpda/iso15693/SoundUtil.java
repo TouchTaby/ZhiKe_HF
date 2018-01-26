@@ -1,10 +1,8 @@
-package utils;
+package com.hcpda.iso15693;
 
 import android.content.Context;
 import android.media.AudioManager;
 import android.media.SoundPool;
-
-import com.hcpda.iso14443a.R;
 
 /**
  * Created by administrator on 2017-12-18.
