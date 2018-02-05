@@ -26,15 +26,7 @@ public class ScanFragment extends Fragment implements View.OnClickListener {
     MainActivity context;
     Button bt_clear;
     Button bt_read;
-    static final String TAG = "TAG";
-    byte[] findCar_CMD = {(byte) 0x50, (byte) 0x00, (byte) 0x02, (byte) 0x22, (byte) 0x10, (byte) 0x52, (byte) 0x32};
-
-    public ScanFragment() {
-        // Required empty public constructor
-    }
-
     int index = 2;
-
     private void getFocus() {
         getView().setFocusable(true);
         getView().setFocusableInTouchMode(true);
@@ -58,14 +50,17 @@ public class ScanFragment extends Fragment implements View.OnClickListener {
     }
 
     private void read_id() {
-            String data_to = context.rfid_14443A.read_id();
-            if (!data_to.equals("寻卡失败，请把标签靠近设备")) {
-                tv_result.append("ID:" + data_to + "\n");
-                context.soundUtil.PlaySound(SoundUtil.SoundType.SUCCESS);
-            } else {
-                tv_result.append("寻卡失败，请把标签靠近设备" + "\n");
-                context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
-            }
+//            String data_to = context.rfid_14443A.read_id();
+//            if (!data_to.equals("寻卡失败，请把标签靠近设备")) {
+//                tv_result.append("ID:" + data_to + "\n");
+//                context.soundUtil.PlaySound(SoundUtil.SoundType.SUCCESS);
+//            } else {
+//                tv_result.append("寻卡失败，请把标签靠近设备" + "\n");
+//                context.soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
+//            }
+        String resu = context.rfid_14443A.read_all();
+        tv_result.append(resu);
+        context.soundUtil.PlaySound(SoundUtil.SoundType.SUCCESS);
             scrollToBottom(scrollView, tv_result);
     }
 
@@ -114,7 +109,6 @@ public class ScanFragment extends Fragment implements View.OnClickListener {
                 if (offset < 0) {
                     offset = 0;
                 }
-
                 scroll.scrollTo(0, offset);
             }
         });

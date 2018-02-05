@@ -105,6 +105,17 @@ public class MainActivity extends AppCompatActivity {
                         readSuccCount++;
                         String uid = (String) msg.obj;
 
+                        String id0 = uid.substring(0, 2);
+                        String id1 = uid.substring(2, 4);
+                        String id2 = uid.substring(4, 6);
+                        String id3 = uid.substring(6, 8);
+                        String id4 = uid.substring(8, 10);
+                        String id5 = uid.substring(10, 12);
+                        String id6 = uid.substring(12, 14);
+                        String id7 = uid.substring(14, 16);
+
+                        uid = id7 + id6 + id5 + id4 + id3 + id2 + id1 + id0;
+
                         tvResult.append(getString(R.string.rfid_msg_data) + " "
                                 + uid);
                         soundUtil.PlaySound(SoundUtil.SoundType.SUCCESS);
@@ -115,6 +126,14 @@ public class MainActivity extends AppCompatActivity {
                     case 1: {
                         readSuccCount++;
                         String uid = (String) msg.obj;
+                        String id0 = uid.substring(0, 2);
+                        String id1 = uid.substring(2, 4);
+                        String id2 = uid.substring(4, 6);
+                        String id3 = uid.substring(6, 8);
+                        String id4 = uid.substring(8, 10);
+                        String id5 = uid.substring(10, 12);
+                        String id6 = uid.substring(12, 14);
+                        String id7 = uid.substring(14, 16);
 
                         tvResult.append(getString(R.string.rfid_msg_uid) + " "
                                 + uid);
@@ -186,7 +205,6 @@ public class MainActivity extends AppCompatActivity {
      * 读线程
      *
      * @author liuruifeng
-     *
      */
     class ReadRunnable implements Runnable {
         private boolean isContinuous = false;
@@ -247,7 +265,6 @@ public class MainActivity extends AppCompatActivity {
      * 写线程
      *
      * @author liuruifeng
-     *
      */
     class WriteRunnable implements Runnable {
 
@@ -767,13 +784,13 @@ public class MainActivity extends AppCompatActivity {
 
         try {
             data = mRFID.read(spBlock.getSelectedItemPosition());
-            Log.e("TAG","----------------------"+ data);
+            Log.e("TAG", "----------------------" + data);
             if (data == null) {
                 tvResult.append(getString(R.string.rfid_mgs_error_not_found)
                         + "\n");
                 soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
                 return;
-            }else {
+            } else {
                 soundUtil.PlaySound(SoundUtil.SoundType.SUCCESS);
             }
 
@@ -834,15 +851,26 @@ public class MainActivity extends AppCompatActivity {
         uid = mRFID.inventory();
 
         if (uid == null) {
+
             soundUtil.PlaySound(SoundUtil.SoundType.FAILURE);
             tvResult.append(getString(R.string.rfid_mgs_error_not_found));
             tvResult.append("\n============\n");
             scrollToBottom(svResult, tvResult);
 
             return;
-        }else {
+        } else {
             soundUtil.PlaySound(SoundUtil.SoundType.SUCCESS);
         }
+        String id0 = uid.substring(0, 2);
+        String id1 = uid.substring(2, 4);
+        String id2 = uid.substring(4, 6);
+        String id3 = uid.substring(6, 8);
+        String id4 = uid.substring(8, 10);
+        String id5 = uid.substring(10, 12);
+        String id6 = uid.substring(12, 14);
+        String id7 = uid.substring(14, 16);
+        uid = id7 + id6 + id5 + id4 + id3 + id2 + id1 + id0;
+
 
         tvResult.append(getString(R.string.rfid_msg_uid) + " " + uid);
 

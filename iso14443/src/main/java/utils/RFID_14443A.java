@@ -17,7 +17,13 @@ import com.rscja.utility.StringUtility;
 public class RFID_14443A {
     private static RFID_14443A single = null;
     static Module module;
+    //寻卡指令，返回卡ID
     byte[] findCar_CMD = {(byte) 0x50, (byte) 0x00, (byte) 0x02, (byte) 0x22, (byte) 0x10, (byte) 0x52, (byte) 0x32};
+    //同时读16个扇区
+    String[] readall = {"50000c27055200040460FFFFFFFFFFFF4c",
+            "50000c27055204040460FFFFFFFFFFFF48",
+            "50000c27055208040460FFFFFFFFFFFF44",
+            "50000c2705520c040460FFFFFFFFFFFF40"};
     static String TAG = "TAG";
 
     public synchronized static RFID_14443A getInstance() {
@@ -76,6 +82,8 @@ public class RFID_14443A {
      * @param block    绝对块号，s50卡为0~63 s70卡为0~255
      * @return 返回需要读取块区的数据，每一块区的数据长度为16个字节
      */
+
+
     public String read(String key_type, String psw, String block) {
         psw = psw.trim();
 
@@ -135,6 +143,20 @@ public class RFID_14443A {
             read_data_ = "寻卡失败，请把标签靠近设备";
         }
         return read_data_;
+    }
+
+    /**
+     * 读取16个块区的所有数据，包括密码块区
+     * @return
+     */
+    public String read_all() {
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < readall.length; i++) {
+            module.send(StringUtility.hexString2Bytes(readall[i]));
+            byte[] data = module.receive();
+            result.append(StringUtility.bytes2HexString(data, data.length));
+        }
+        return String.valueOf(result);
     }
 
     /**
